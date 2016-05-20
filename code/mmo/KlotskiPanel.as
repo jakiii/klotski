@@ -43,12 +43,14 @@ package code.mmo
 		{
 			super();
 //			var initStr:String = "01#11#01#10#10#01#01#10#01#01#10#00#00"; //地图1
-//			var initStr:String = "01#00#00#01#10#11#10#10#01#01#10#01#01"; //地图2
-			var initStr:String = "01#01#11#10#00#00#10#01#10#01#10#01#01"; //地图3
+			var initStr:String = "01#00#00#01#10#11#10#10#01#01#10#01#01"; //地图2
+//			var initStr:String = "01#01#11#10#00#00#10#01#10#01#10#01#01"; //地图3
+//			var initStr:String = "01#10#01#10#01#01#01#11#01#10#10#00#00"; //地图4
+			
 			initStr = initStr.replace(/#/g,"");
 			this._mapInt = parseInt(initStr,2);
 			
-//			this._mapInt = 24651365;
+//			this._mapInt = 21928517;
 			trace("init int="+_mapInt);
 			this.setMap();
 			this.getWays(_materials);
@@ -70,7 +72,6 @@ package code.mmo
 		
 		private function setMap():void
 		{
-			this._alreadyKey[_mapInt] = true;
 			var mask:Object = {};
 			var stand:int = 3; //11
 			for(var i:int = 0; i < PosNum; i ++)
@@ -147,6 +148,11 @@ package code.mmo
 		
 		private function getWays(materials:Array):void
 		{
+			if(checkIsWin(materials))
+			{
+				trace(getMapInt(materials) +"___获胜地图");
+				return;
+			}
 			for each(var o:Material in materials)
 			{
 				var results:Array = checkCanMove(o, materials);
@@ -156,9 +162,10 @@ package code.mmo
 					{
 						var mtrs:Array = results[i];
 						var mapInt:int = getMapInt(mtrs);
-						trace("key:"+mapInt);
+						trace(mapInt+"____");
 						if(!_alreadyKey[mapInt])
 						{
+							this._alreadyKey[mapInt] = true;
 							this._rightKey.push(mapInt);
 //							getWays(mtrs);
 						}
@@ -184,6 +191,7 @@ package code.mmo
 				return null;
 			}
 			var emptys:Array = getEmptyPos(materials);
+//			traceMaterials(emptys);
 			var h_w:Array = TypeConfig.getH_W(mtr.type);
 			//上下左右
 			var materialsResult:Array = [];
@@ -192,52 +200,75 @@ package code.mmo
 			{
 				var afterH:int = mtr.h + Direction[d][0];
 				var afterW:int = mtr.w + Direction[d][1];
-				
+				[]
 				var n:int = 0;
 				
 				var pos:Array = [];
 				if(d == DIRECTION_UP || d == DIRECTION_DOWN)
 				{
+//					[1,1] //h_w
+//					[0,1] //pre
+//					
+//					[1,1] //after
 					n = h_w[1];
+					var posH:int = afterH;
+					if(d == DIRECTION_DOWN && h_w[0] >= 2)
+					{
+						posH += 1;
+					}
 					for(var i:int = 0; i < n; i ++)
 					{
-						pos.push([afterH,afterW + i]);
+						pos.push([posH,afterW + i]);
 					}
 				}else
 				{
 					n = h_w[0];
+					var posW:int = afterW;
+					if(d == DIRECTION_RIGHT && h_w[1] >= 2)
+					{
+						posW += 1;
+					}
 					for(var j:int = 0; j < n; j ++)
 					{
-						pos.push([afterH + j, afterW]);
+						pos.push([afterH + j, posW]);
 					}
 				}
+				var isOutSide:Boolean = false;
+				for each(var p:Array in pos)
+				{
+					if(p[0] < 0 || p[0] >= H || p[1] < 0 || p[1] >= W)
+					{
+						isOutSide = true;
+					}
+				}
+				if(isOutSide)
+				{
+					continue;
+				}
 				
-				var canMove:Boolean = true;
+				var canMove:Boolean = false;
+				var hitNum:int = 0;
 				for(var k:int = 0; k < pos.length; k ++)
 				{
-					var hit:Boolean = false;
+//					var hit:Boolean = false;
 					for each(var o:Material in emptys)
 					{
 						if(pos[k][0] == o.h && pos[k][1] == o.w)
 						{
-							hit = true;
+//							hit = true;
+							hitNum ++;
 						}
 					}
-					if(!hit)
+					if(hitNum >= n)
 					{
-						canMove = false;
+						canMove = true;
 					}
 				}
 				if(canMove)
 				{
-					if(mtr.index == 9)
-					{
-						this.traceMaterials(materials);
-						var newMaterial:Array = this.genNewMaterials(mtr,d,materials);
-						materialsResult.push(newMaterial);
-						trace(mtr.index+",direction="+DirectionDecs[d] + "__________");
-						this.traceMaterials(newMaterial);
-					}
+					trace("direction="+d+"_h="+mtr.h + "_w="+mtr.w);
+					var newMaterial:Array = this.genNewMaterials(mtr,d,materials);
+					materialsResult.push(newMaterial);
 				}
 			}
 			if(materialsResult.length == 0)
@@ -250,6 +281,8 @@ package code.mmo
 		private function genNewMaterials(mtr:Material, direction:int, materials:Array):Array
 		{
 			var newMaterials:Array = copyMaterials(materials);
+			
+			var moveTarget:Material = getMaterial(mtr.h,mtr.w,newMaterials);
 			
 			var afterH:int = mtr.h + Direction[direction][0];
 			var afterW:int = mtr.w + Direction[direction][1];
@@ -265,10 +298,10 @@ package code.mmo
 				for(var i:int = 0; i < n; i ++)
 				{
 					empty = this.getMaterial(afterH, afterW + i, newMaterials);
-					trace("type="+empty.type+"_empty_h="+empty.h + "_w="+empty.w);
+//					trace("empty="+"_h="+empty.h+"_w="+empty.w);
 					empty.h = empty.h + Direction[direction][0]*-1;
 					empty.w = empty.w + Direction[direction][1]*-1;
-					trace("type="+empty.type+"_empty_h="+empty.h + "_w="+empty.w);
+//					trace("empty="+"_h="+empty.h+"_w="+empty.w);
 				}
 			}else
 			{
@@ -276,16 +309,18 @@ package code.mmo
 				for(var j:int = 0; j < n; j ++)
 				{
 					empty = this.getMaterial(afterH + j, afterW, newMaterials);
-					trace("type="+empty.type);
 					empty.h = empty.h + Direction[direction][0]*-1;
 					empty.w = empty.w + Direction[direction][1]*-1;
 				}
 			}
-			var moveTarget:Material = getMaterial(mtr.h, mtr.w, newMaterials);
+//			var moveTarget:Material = getMaterial(mtr.h, mtr.w, materials);
 			moveTarget.h = afterH;
 			moveTarget.w = afterW;
+//			trace("movetarget:"+"_h="+moveTarget.h + "_w="+moveTarget.w);
+//			trace(getMapInt(newMaterials));
 			this.resetIndex(newMaterials);
 			newMaterials.sortOn("index",Array.NUMERIC);
+//			trace("after reset="+getMapInt(newMaterials));
 			return newMaterials;
 		}
 		
@@ -343,11 +378,23 @@ package code.mmo
 			return arr;
 		}
 		
+		private function checkIsWin(materials:Array):Boolean
+		{
+			for each(var o:Material in materials)
+			{
+				if(o.type == TypeConfig.TYPE_2_2 && o.h == 3 && o.w == 1)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+		
 		private function traceMaterials(materials:Array):void
 		{
 			for each(var o:Material in materials)
 			{
-				trace(o.h + "_" + o.w);
+				trace(o.h + "_" + o.w + "_type="+o.type);
 			}
 		}
 	}
