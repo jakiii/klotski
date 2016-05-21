@@ -1,6 +1,6 @@
-package code.mmo.type
+package mmo.type
 {
-	import code.mmo.config.TypeConfig;
+	import mmo.config.TypeConfig;
 
 	public class Type_22 extends TypeBase
 	{

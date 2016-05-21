@@ -1,4 +1,4 @@
-package code.mmo.data
+package mmo.data
 {
 	public class Material
 	{

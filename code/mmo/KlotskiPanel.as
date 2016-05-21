@@ -1,14 +1,18 @@
-package code.mmo
+package mmo
 {
-	import code.mmo.config.TypeConfig;
-	import code.mmo.data.Material;
-	import code.mmo.type.TypeBase;
-	import code.mmo.type.Type_00;
-	import code.mmo.type.Type_11;
-	import code.mmo.type.Type_12;
-	import code.mmo.type.Type_22;
-	
 	import flash.display.MovieClip;
+	import flash.events.MouseEvent;
+	import flash.events.TimerEvent;
+	import flash.utils.Timer;
+	
+	import mmo.config.TypeConfig;
+	import mmo.data.Material;
+	import mmo.tree.Node;
+	import mmo.type.TypeBase;
+	import mmo.type.Type_00;
+	import mmo.type.Type_11;
+	import mmo.type.Type_12;
+	import mmo.type.Type_22;
 	
 	public class KlotskiPanel extends MovieClip
 	{
@@ -36,24 +40,78 @@ package code.mmo
 		private var _items:Vector.<TypeBase> = new Vector.<TypeBase>(); 
 		private var _alreadyKey:Object = {};
 		private var _checkKey:Object = {};
+		
 		private var _rightKey:Array = [];
 		private var _materials:Array = [];
+		
+		private var _gameOver:Boolean = false;
+		
+		private var _root:Node;
+		
+		private var _show:String = "44401109_44414273_44414276_44414228_44381780_10909268_10909205_44381717_44413973_44414021_44413253_" +
+			"44348741_44152133_44152145_44348753_44413265_44414033_44414036_44413268_44348756_44152148_44151893_44348501_44347733_" +
+			"44151125_44086613_42513749_36222293_11056469_11194709_44618069_44765525_42651989_42653009_44766545_44778833_44225873_" +
+			"44224853_44777813_44762453_44221781_42120533_42648917_42652757_44766293_44778581_44225621_44095829_42522965_42584405_" +
+			"42588245_43571285_43632725_43595861_10123349_9989717_35155541_38301269_34172501_35204693_39333461_39559253_39559505_" +
+			"39559508_39560276_39560528_39552404_39036308_38249876_35104148_35103893_38249621_39036053_39552149_39551381_39035285_" +
+			"38248853_35103125_35104145_38249873_39036305_39552401_39560516_39560468_39528788_5957972_18540884_21686612_21678437_" +
+			"18532709_5949797_39520613_39552389_39036293_38249861_35104133_35096933_38242661_39029093_5433701_18016613_17230181_" +
+			"4647269_17230181";
+		
+		private var _showMapInts:Array;
+		private var _mapStr:String = "";
+		private var _mapContainer:MovieClip;
 		
 		public function KlotskiPanel()
 		{
 			super();
-//			var initStr:String = "01#11#01#10#10#01#01#10#01#01#10#00#00"; //地图1
-			var initStr:String = "01#00#00#01#10#11#10#10#01#01#10#01#01"; //地图2
-//			var initStr:String = "01#01#11#10#00#00#10#01#10#01#10#01#01"; //地图3
-//			var initStr:String = "01#10#01#10#01#01#01#11#01#10#10#00#00"; //地图4
+//			_mapStr = "01#11#01#10#10#01#01#10#01#01#10#00#00"; //地图1
+			_mapStr = "01#00#00#01#10#11#10#10#01#01#10#01#01"; //地图2
+//			_mapStr = "01#01#11#10#00#00#10#01#10#01#10#01#01"; //地图3
+//			_mapStr = "01#10#01#10#01#01#01#11#01#10#10#00#00"; //地图4
+//			_mapStr = "01#11#01#10#10#00#00#10#01#01#10#01#01"; //地图5
+			this._mapContainer = this.getChildByName("mccontainer") as MovieClip;
 			
-			initStr = initStr.replace(/#/g,"");
-			this._mapInt = parseInt(initStr,2);
-			
-//			this._mapInt = 21928517;
-			trace("init int="+_mapInt);
+			this._mapStr = _mapStr.replace(/#/g,"");
+			this._mapInt = parseInt(_mapStr,2);
 			this.setMap();
-			this.getWays(_materials);
+			
+			this.addEventListener(MouseEvent.CLICK, onClick);
+		}
+		
+		private function onClick(e:MouseEvent):void
+		{
+			switch(e.target.name)
+			{
+				case "btnauto":
+					this.auto();
+					break;
+			}
+		}
+		
+		private function auto():void
+		{
+			this._root = new Node(_mapInt, null);
+//			this._mapInt = 44401109;
+			trace("init int="+_mapInt);
+//			this.setMap();
+			this.getWays(_materials, _root);
+		}
+		
+		private function onTimer(e:TimerEvent):void
+		{
+			var mapInt:int = int(_showMapInts.pop());
+			trace(mapInt);
+			if(mapInt != 0)
+			{
+				this.showMap(mapInt);
+			}else
+			{
+				var t:Timer = e.currentTarget as Timer;
+				t.stop();
+				trace("结束了");
+			}
+			
 		}
 		
 		private function getMask():Array
@@ -98,9 +156,49 @@ package code.mmo
 				}
 				mc.y = h_w[0]*GRID_WIDTH;
 				mc.x = h_w[1]*GRID_WIDTH;
-				this.addChild(mc);
+				this._mapContainer.addChild(mc);
 				this._items.push(mc);
 				this._materials.push(material);
+			}
+		}
+		
+		private function showMap(mapInt:int):void
+		{
+			this.clearStage();
+			var mask:Object = {};
+			var stand:int = 3; //11
+			for(var i:int = 0; i < PosNum; i ++)
+			{
+				var b:int = stand << (TotalPos - (i + 1)*2);
+				var type:int = (mapInt & b)>>(TotalPos - (i + 1)*2);
+				var h_w:Array = getH_W(type, mask);
+				var mc:TypeBase;
+				switch(type)
+				{
+					case TypeConfig.Type_0_0:
+						mc = new Type_00(i, h_w[0], h_w[1]);
+						break;
+					case TypeConfig.TYPE_1_1:
+						mc = new Type_11(i, h_w[0], h_w[1]);
+						break;
+					case TypeConfig.TYPE_1_2:
+						mc = new Type_12(i, h_w[0], h_w[1]);
+						break;
+					case TypeConfig.TYPE_2_2:
+						mc = new Type_22(i, h_w[0], h_w[1]);
+						break;
+				}
+				mc.y = h_w[0]*GRID_WIDTH;
+				mc.x = h_w[1]*GRID_WIDTH;
+				this._mapContainer.addChild(mc);
+			}
+		}
+		
+		private function clearStage():void
+		{
+			while(this._mapContainer.numChildren > 0)
+			{
+				this._mapContainer.removeChildAt(0);
 			}
 		}
 		
@@ -146,11 +244,17 @@ package code.mmo
 			return arr;
 		}
 		
-		private function getWays(materials:Array):void
+		private function getWays(materials:Array, node:Node):void
 		{
+			if(this._gameOver)
+			{
+				return;
+			}
 			if(checkIsWin(materials))
 			{
 				trace(getMapInt(materials) +"___获胜地图");
+				this._gameOver = true;
+				this.traceResult(node);
 				return;
 			}
 			for each(var o:Material in materials)
@@ -162,12 +266,13 @@ package code.mmo
 					{
 						var mtrs:Array = results[i];
 						var mapInt:int = getMapInt(mtrs);
-						trace(mapInt+"____");
 						if(!_alreadyKey[mapInt])
 						{
 							this._alreadyKey[mapInt] = true;
 							this._rightKey.push(mapInt);
-//							getWays(mtrs);
+							var childNode:Node = new Node(mapInt, node);
+							node.addChild(childNode);
+							getWays(mtrs, childNode);
 						}
 					}
 				}
@@ -180,6 +285,7 @@ package code.mmo
 			for(var i:int = 0; i < materials.length; i ++)
 			{
 				str += TypeConfig.getMaterialStr(materials[i].type);
+//				trace("type="+materials[i].type + "_h="+materials[i].h + "_w="+materials[i].w + "_index="+materials[i].index);
 			}
 			return parseInt(str,2);
 		}
@@ -191,7 +297,7 @@ package code.mmo
 				return null;
 			}
 			var emptys:Array = getEmptyPos(materials);
-//			traceMaterials(emptys);
+			
 			var h_w:Array = TypeConfig.getH_W(mtr.type);
 			//上下左右
 			var materialsResult:Array = [];
@@ -200,16 +306,11 @@ package code.mmo
 			{
 				var afterH:int = mtr.h + Direction[d][0];
 				var afterW:int = mtr.w + Direction[d][1];
-				[]
 				var n:int = 0;
 				
 				var pos:Array = [];
 				if(d == DIRECTION_UP || d == DIRECTION_DOWN)
 				{
-//					[1,1] //h_w
-//					[0,1] //pre
-//					
-//					[1,1] //after
 					n = h_w[1];
 					var posH:int = afterH;
 					if(d == DIRECTION_DOWN && h_w[0] >= 2)
@@ -250,12 +351,10 @@ package code.mmo
 				var hitNum:int = 0;
 				for(var k:int = 0; k < pos.length; k ++)
 				{
-//					var hit:Boolean = false;
 					for each(var o:Material in emptys)
 					{
 						if(pos[k][0] == o.h && pos[k][1] == o.w)
 						{
-//							hit = true;
 							hitNum ++;
 						}
 					}
@@ -266,7 +365,6 @@ package code.mmo
 				}
 				if(canMove)
 				{
-					trace("direction="+d+"_h="+mtr.h + "_w="+mtr.w);
 					var newMaterial:Array = this.genNewMaterials(mtr,d,materials);
 					materialsResult.push(newMaterial);
 				}
@@ -282,6 +380,8 @@ package code.mmo
 		{
 			var newMaterials:Array = copyMaterials(materials);
 			
+			var emptysss:Array = this.getEmptyPos(newMaterials);
+			
 			var moveTarget:Material = getMaterial(mtr.h,mtr.w,newMaterials);
 			
 			var afterH:int = mtr.h + Direction[direction][0];
@@ -295,32 +395,54 @@ package code.mmo
 			if(direction == DIRECTION_UP || direction == DIRECTION_DOWN)
 			{
 				n = h_w[1];
+				var preEmptyH:int = afterH;
+				if(h_w[0] >= 2 && direction == DIRECTION_DOWN)
+				{
+					preEmptyH ++;
+				}
+				
 				for(var i:int = 0; i < n; i ++)
 				{
-					empty = this.getMaterial(afterH, afterW + i, newMaterials);
-//					trace("empty="+"_h="+empty.h+"_w="+empty.w);
-					empty.h = empty.h + Direction[direction][0]*-1;
-					empty.w = empty.w + Direction[direction][1]*-1;
-//					trace("empty="+"_h="+empty.h+"_w="+empty.w);
+					empty = this.getMaterial(preEmptyH, afterW + i,newMaterials);
+					var afterEmptyH:int = mtr.h;
+					if(h_w[0] >= 2)
+					{
+						if(direction == DIRECTION_UP)
+						{
+							afterEmptyH ++;
+						}
+					}
+					empty.h = afterEmptyH;
+					empty.w = mtr.w + i;
 				}
 			}else
 			{
 				n = h_w[0];
+				var preEmptyW:int = afterW;
+				if(h_w[1] >= 2 && direction == DIRECTION_RIGHT)
+				{
+					preEmptyW ++;
+				}
+				
 				for(var j:int = 0; j < n; j ++)
 				{
-					empty = this.getMaterial(afterH + j, afterW, newMaterials);
-					empty.h = empty.h + Direction[direction][0]*-1;
-					empty.w = empty.w + Direction[direction][1]*-1;
+					empty = this.getMaterial(afterH + j, preEmptyW,newMaterials);
+					var afterEmptyW:int = mtr.w;
+					if(h_w[1] >= 2)
+					{
+						if(direction == DIRECTION_LEFT)
+						{
+							afterEmptyW ++;
+						}
+					}
+					empty.h = mtr.h + j;
+					empty.w = afterEmptyW;
 				}
 			}
-//			var moveTarget:Material = getMaterial(mtr.h, mtr.w, materials);
 			moveTarget.h = afterH;
 			moveTarget.w = afterW;
-//			trace("movetarget:"+"_h="+moveTarget.h + "_w="+moveTarget.w);
-//			trace(getMapInt(newMaterials));
 			this.resetIndex(newMaterials);
 			newMaterials.sortOn("index",Array.NUMERIC);
-//			trace("after reset="+getMapInt(newMaterials));
 			return newMaterials;
 		}
 		
@@ -363,7 +485,6 @@ package code.mmo
 					return o;
 				}
 			}
-//			throw new Error("getMaterial(h:int, w:int, materials:Array):_"+"h="+h+"_w="+w);
 			return null;
 		}
 		
@@ -396,6 +517,24 @@ package code.mmo
 			{
 				trace(o.h + "_" + o.w + "_type="+o.type);
 			}
+		}
+		
+		private function traceResult(node:Node):void
+		{
+			var str:String = "";
+			while(node)
+			{
+				str += node.key + "_";
+				node = node.parent;
+			}
+			trace("results:"+str);
+			this._show = str;
+			this._showMapInts = _show.split("_");
+			this._showMapInts.pop();
+			trace("步数:"+_showMapInts.length);
+			var t:Timer = new Timer(200);
+			t.addEventListener(TimerEvent.TIMER, onTimer);
+			t.start();
 		}
 	}
 }

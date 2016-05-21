@@ -1,4 +1,4 @@
-package code.mmo.config
+package mmo.config
 {
 	public class TypeConfig
 	{

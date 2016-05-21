@@ -1,4 +1,4 @@
-package code.mmo.type
+package mmo.type
 {
 	import flash.display.MovieClip;
 	
